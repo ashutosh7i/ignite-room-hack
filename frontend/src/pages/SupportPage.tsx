@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { agentQuery, fetchSupportAnalyze, type UserContextDocument } from "@/lib/api";
+import { agentQuery, fetchSupportAnalyze, formatAgentTiming, type UserContextDocument } from "@/lib/api";
 
 type AnalyzeResponse = {
   message: string;
@@ -63,6 +63,7 @@ function SupportColumn({
 export function SupportPage() {
   const [data, setData] = useState<AnalyzeResponse | null>(null);
   const [agentAnswer, setAgentAnswer] = useState<string | null>(null);
+  const [agentTimingLabel, setAgentTimingLabel] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -103,13 +104,23 @@ export function SupportPage() {
             onClick={() =>
               agentQuery(
                 "Are other users showing similar behaviour to the production customer?",
-              ).then((r) => setAgentAnswer(r.answer))
+              ).then((r) => {
+                setAgentAnswer(r.answer);
+                setAgentTimingLabel(formatAgentTiming(r.timing) || null);
+              })
             }
           >
             Ask: similar users?
           </Button>
           {agentAnswer && (
-            <div className="bg-muted rounded-lg border p-4 text-sm">{agentAnswer}</div>
+            <div className="space-y-2">
+              {agentTimingLabel && (
+                <p className="text-muted-foreground text-xs tabular-nums">
+                  Response time: {agentTimingLabel}
+                </p>
+              )}
+              <div className="bg-muted rounded-lg border p-4 text-sm">{agentAnswer}</div>
+            </div>
           )}
         </>
       )}

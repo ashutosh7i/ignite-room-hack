@@ -1,20 +1,32 @@
-import { getOpenRouterClient } from "../../lib/openrouter.js";
-import type { ChatResult } from "@openrouter/sdk/models/chatresult.js";
 import { prisma } from "../../lib/prisma.js";
 import type { UserContextDocument } from "../../types/context.js";
+import {
+  compactContextForAgent,
+  tryGroundedAnswer,
+} from "./groundedAnswer.js";
+import { openRouterChatCompletion } from "./openRouterChat.js";
 import { findSimilarUsers } from "../context/similarUsers.js";
 
 const CHAT_MODEL = () =>
   process.env.CHAT_MODEL ?? "google/gemini-2.0-flash-001";
 
-export async function handleAgentQuery(
-  message: string,
-  userId?: string,
-): Promise<{
+const USE_LLM =
+  () => process.env.AGENT_USE_LLM !== "false";
+
+export type AgentQueryResult = {
   answer: string;
   sources: string[];
   structured?: unknown;
-}> {
+  timing?: {
+    llmMs?: number;
+    grounded?: boolean;
+  };
+};
+
+export async function handleAgentQuery(
+  message: string,
+  userId?: string,
+): Promise<AgentQueryResult> {
   const trimmed = message.trim();
   const lower = trimmed.toLowerCase();
 
@@ -59,10 +71,16 @@ export async function handleAgentQuery(
       };
     }
 
-    if (lower.includes("in our database") || /^is\s+/i.test(trimmed)) {
+    const grounded = tryGroundedAnswer(trimmed, ctx, user.firstName, user.lastName);
+    if (grounded) {
+      return { ...grounded, timing: { grounded: true, llmMs: 0 } };
+    }
+
+    if (!USE_LLM()) {
       return {
-        answer: `Yes — ${user.firstName} ${user.lastName} is in the database${user.organization ? ` (${user.organization})` : ""}.`,
-        sources: ["users"],
+        answer: `Structured context: health ${ctx.usage.health}, ${ctx.support.recommendedAction}`,
+        sources: ["user_context"],
+        structured: compactContextForAgent(ctx),
       };
     }
 
@@ -94,8 +112,18 @@ export async function handleAgentQuery(
     const users = await prisma.user.findMany({
       where: {
         OR: [
-          { firstName: { contains: searchName.split(" ")[0], mode: "insensitive" } },
-          { lastName: { contains: searchName.split(" ").pop() ?? "", mode: "insensitive" } },
+          {
+            firstName: {
+              contains: searchName.split(" ")[0],
+              mode: "insensitive",
+            },
+          },
+          {
+            lastName: {
+              contains: searchName.split(" ").pop() ?? "",
+              mode: "insensitive",
+            },
+          },
         ],
       },
       take: 5,
@@ -110,7 +138,9 @@ export async function handleAgentQuery(
     }
 
     const user = users[0];
-    if (lower.startsWith("is ") || lower.includes("in our database")) {
+    const ctx = user.context?.context as UserContextDocument | undefined;
+
+    if (lower.includes("in our database") || lower.includes("in the database")) {
       return {
         answer: `Yes — ${user.firstName} ${user.lastName} is in the database${user.organization ? ` (${user.organization})` : ""}.`,
         sources: ["users"],
@@ -118,7 +148,6 @@ export async function handleAgentQuery(
       };
     }
 
-    const ctx = user.context?.context as UserContextDocument | undefined;
     if (!ctx) {
       return {
         answer: `${user.firstName} ${user.lastName} exists but context has not been built yet. Run context refresh.`,
@@ -138,79 +167,71 @@ export async function handleAgentQuery(
       };
     }
 
+    const grounded = tryGroundedAnswer(trimmed, ctx, user.firstName, user.lastName);
+    if (grounded) {
+      return { ...grounded, timing: { grounded: true, llmMs: 0 } };
+    }
+
     return summarizeWithLlm(trimmed, ctx, user.firstName, user.lastName);
   }
 
   return {
     answer:
-      "Ask about a user by name, e.g. “What do we know about Ashwin?” or “Are other users showing similar behaviour?”",
+      "Ask about a user by name, e.g. “What do we know about Ashwin?” or open a user profile to ask custom questions.",
     sources: [],
   };
 }
 
 async function summarizeWithLlm(
   question: string,
-  context: UserContextDocument | UserContextDocument[] | unknown,
+  context: UserContextDocument,
   firstName: string,
   lastName: string,
-): Promise<{ answer: string; sources: string[]; structured?: unknown }> {
-  const payload = JSON.stringify(context, null, 2);
+): Promise<AgentQueryResult> {
+  const compact = compactContextForAgent(context);
+  const payload = JSON.stringify(compact);
 
   if (!process.env.OPENROUTER_API_KEY) {
     return {
       answer: "LLM unavailable. Here is structured context only.",
       sources: ["user_context"],
-      structured: context,
+      structured: compact,
     };
   }
 
   try {
-    const client = getOpenRouterClient();
-    const raw = await client.chat.send({
-      httpReferer: process.env.OPENROUTER_HTTP_REFERER,
-      appTitle: process.env.OPENROUTER_X_TITLE,
-      chatRequest: {
-        model: CHAT_MODEL(),
-        messages: [
-          {
-            role: "system",
-            content:
-              "You are EnSight support intelligence. Answer ONLY from the provided JSON context and evidence. If unknown, say so. Be concise.",
-          },
-          {
-            role: "user",
-            content: `Question: ${question}\n\nUser: ${firstName} ${lastName}\n\nContext JSON:\n${payload}`,
-          },
-        ],
-        stream: false,
-      },
+    const { text, llmMs } = await openRouterChatCompletion({
+      model: CHAT_MODEL(),
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are EnSight support intelligence. Answer ONLY from the JSON context. Max 3 short sentences. If unknown, say so.",
+        },
+        {
+          role: "user",
+          content: `Question: ${question}\nUser: ${firstName} ${lastName}\nContext:\n${payload}`,
+        },
+      ],
     });
-
-    const result = raw as ChatResult;
-
-    const choice = result.choices?.[0];
-    const content = choice?.message?.content;
-    const text =
-      typeof content === "string"
-        ? content
-        : Array.isArray(content)
-          ? content
-              .map((p) => ("text" in p ? p.text : ""))
-              .join("")
-          : "Unable to generate summary.";
 
     return {
       answer: text,
       sources: ["user_context", "llm"],
-      structured: context,
+      structured: compact,
+      timing: { llmMs },
     };
   } catch (err) {
     console.error("LLM error:", err);
+    const fallback = tryGroundedAnswer(question, context, firstName, lastName);
+    if (fallback) {
+      return { ...fallback, timing: { grounded: true, llmMs: 0 } };
+    }
     return {
       answer:
-        "Language model unavailable. Use structured context below.",
+        "Language model timed out or failed. See structured context on this page.",
       sources: ["user_context"],
-      structured: context,
+      structured: compact,
     };
   }
 }

@@ -87,14 +87,48 @@ export async function fetchSupportAnalyze() {
   return res.json();
 }
 
+export type AgentQueryResponse = {
+  answer: string;
+  sources: string[];
+  timing?: {
+    clientMs?: number;
+    serverMs?: number;
+    llmMs?: number;
+    grounded?: boolean;
+  };
+};
+
+function formatMs(ms: number): string {
+  return ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${ms}ms`;
+}
+
+export function formatAgentTiming(timing?: AgentQueryResponse["timing"]): string {
+  if (!timing) return "";
+  const parts: string[] = [];
+  if (timing.grounded) parts.push("instant (grounded)");
+  if (timing.clientMs != null) parts.push(`${formatMs(timing.clientMs)} total`);
+  if (timing.serverMs != null) parts.push(`${formatMs(timing.serverMs)} server`);
+  if (timing.llmMs != null && timing.llmMs > 0)
+    parts.push(`${formatMs(timing.llmMs)} LLM`);
+  return parts.join(" · ");
+}
+
 export async function agentQuery(message: string, userId?: string) {
+  const clientStart = performance.now();
   const res = await fetch("/api/agent/query", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message, userId }),
   });
   if (!res.ok) throw new Error("Agent failed");
-  return res.json() as Promise<{ answer: string; sources: string[] }>;
+  const data = (await res.json()) as AgentQueryResponse;
+  return {
+    ...data,
+    timing: {
+      ...data.timing,
+      clientMs: Math.round(performance.now() - clientStart),
+    },
+  };
 }
 
 export async function fetchSimilar(userId: string) {

@@ -15,6 +15,11 @@ export default defineConfig({
     },
   },
   server: {
+    headers: {
+      // Vite dev + React refresh need unsafe-eval; avoids CSP console noise in embedded browsers.
+      "Content-Security-Policy":
+        "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' http://localhost:3001 ws://localhost:5173 ws://127.0.0.1:5173; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:",
+    },
     proxy: {
       "/api": {
         target: "http://localhost:3001",

@@ -5,6 +5,7 @@ import {
   agentQuery,
   fetchSimilar,
   fetchUserContext,
+  formatAgentTiming,
   refreshContext,
   simulateSpike,
   type UserContextDocument,
@@ -30,6 +31,7 @@ export function UserContextPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [agentAnswer, setAgentAnswer] = useState<string | null>(null);
+  const [agentTimingLabel, setAgentTimingLabel] = useState<string | null>(null);
   const [customQuestion, setCustomQuestion] = useState("");
   const [agentLoading, setAgentLoading] = useState(false);
   const [agentError, setAgentError] = useState<string | null>(null);
@@ -60,8 +62,13 @@ export function UserContextPage() {
     if (!q) return;
     setAgentLoading(true);
     setAgentError(null);
+    setAgentTimingLabel(null);
     agentQuery(q, id)
-      .then((r) => setAgentAnswer(r.answer))
+      .then((r) => {
+        setAgentAnswer(r.answer);
+        const label = formatAgentTiming(r.timing);
+        setAgentTimingLabel(label || null);
+      })
       .catch((e) =>
         setAgentError(e instanceof Error ? e.message : "Agent request failed"),
       )
@@ -208,8 +215,15 @@ export function UserContextPage() {
               <p className="text-destructive text-sm">{agentError}</p>
             )}
             {agentAnswer && (
-              <div className="bg-muted rounded-md border p-3 text-sm whitespace-pre-wrap">
-                {agentAnswer}
+              <div className="space-y-2">
+                {agentTimingLabel && (
+                  <p className="text-muted-foreground text-xs tabular-nums">
+                    Response time: {agentTimingLabel}
+                  </p>
+                )}
+                <div className="bg-muted rounded-md border p-3 text-sm whitespace-pre-wrap">
+                  {agentAnswer}
+                </div>
               </div>
             )}
           </div>

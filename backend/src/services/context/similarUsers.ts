@@ -34,12 +34,29 @@ export async function findSimilarUsers(
   userId: string,
   limit = 5,
 ): Promise<SimilarUserResult[]> {
-  const refRow = await prisma.userContext.findUnique({ where: { userId } });
+  const refRow = await prisma.userContext.findUnique({
+    where: { userId },
+    include: { user: { include: { activity: true } } },
+  });
   if (!refRow) return [];
 
   const ref = refRow.context as unknown as UserContextDocument;
+  const refSdk = refRow.user.activity?.sdk ?? ref.facts.sdk;
+  const refAnomaly = ref.behaviour.anomalyProbability ?? 0;
+
   const all = await prisma.userContext.findMany({
-    where: { NOT: { userId } },
+    where: {
+      NOT: { userId },
+      user: {
+        activity: {
+          sdk: refSdk,
+          ...(refAnomaly > 0.5
+            ? { currentErrorRate: { gte: 0.05 } }
+            : {}),
+        },
+      },
+    },
+    take: 120,
     include: {
       user: {
         select: {

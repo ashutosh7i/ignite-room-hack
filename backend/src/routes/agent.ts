@@ -13,8 +13,17 @@ agentRouter.post("/agent/query", async (req, res) => {
   }
 
   try {
+    const serverStart = performance.now();
     const result = await handleAgentQuery(message, userId);
-    res.json(result);
+    const serverMs = Math.round(performance.now() - serverStart);
+    res.json({
+      ...result,
+      timing: {
+        ...result.timing,
+        serverMs,
+        grounded: result.timing?.grounded ?? false,
+      },
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({

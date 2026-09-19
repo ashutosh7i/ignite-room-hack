@@ -1,12 +1,12 @@
 ## **Context Intelligence Layer for a Developer SaaS Platform**
 
-Working name options: **ContextIQ**, **UserLens**, **ContextOS**, or **KnowUser**.
+Working name options: **EnSight**, **UserLens**, **ContextOS**, or **KnowUser**.
 
-For the hackathon, I’d use **ContextIQ**.
+For the hackathon, I’d use **EnSight**.
 
 ### One-line description
 
-> **ContextIQ is a universal user-intelligence layer that sits above fragmented platform data, continuously builds structured context about every user, and makes that context available to AI agents and downstream applications.**
+> **EnSight is a universal user-intelligence layer that sits above fragmented platform data, continuously builds structured context about every user, and makes that context available to AI agents and downstream applications.**
 
 That is almost directly what the organizers want. Their PS explicitly asks for a layer above raw platform data that creates a rich understanding of users and exposes it through a conversational AI agent. 
 
@@ -24,7 +24,7 @@ The PDF explicitly asks you to **pick one platform use case and justify the cont
 
 So say:
 
-> **For our demonstration, ContextIQ is deployed on a developer SaaS/API platform.**
+> **For our demonstration, EnSight is deployed on a developer SaaS/API platform.**
 
 Think something conceptually similar to a developer product where users integrate SDKs/APIs.
 
@@ -268,7 +268,7 @@ No configuration change
 
 Then say:
 
-> **A traditional ticketing system sees the same sentence twice. ContextIQ understands two completely different situations.**
+> **A traditional ticketing system sees the same sentence twice. EnSight understands two completely different situations.**
 
 That's your demo.
 
@@ -461,7 +461,7 @@ I would phrase your own problem statement as:
 
 > **Platforms collect vast amounts of user data, but that data remains fragmented across identity, activity, external profiles, telemetry and support systems. Individual records tell us what a user did, but they don't tell us what those signals mean together.**
 >
-> **ContextIQ builds a living, structured understanding of each user above the raw database, making that context directly queryable by humans and usable by downstream applications.**
+> **EnSight builds a living, structured understanding of each user above the raw database, making that context directly queryable by humans and usable by downstream applications.**
 
 Then your use case:
 
@@ -525,7 +525,7 @@ And most importantly, **don't call the product “AI Customer Support.”**
 
 Call it:
 
-# **ContextIQ**
+# **EnSight**
 
 ### *A universal intelligence layer for understanding users.*
 

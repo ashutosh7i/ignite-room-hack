@@ -12,6 +12,9 @@ export type PlatformFacts = {
   sdk: string;
   sdkVersion?: string;
   recentTicketText?: string;
+  apiKeyConfigured?: boolean;
+  configChangedRecently?: boolean;
+  errorRatio?: number;
 };
 
 export type NormalizedNoulAnswer = {

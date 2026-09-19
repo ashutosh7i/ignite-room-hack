@@ -8,7 +8,49 @@ datasource db {
 }
 
 model User {
+  id           String            @id @default(cuid())
+  firstName    String
+  lastName     String
+  linkedin     String?
+  github       String?
+  organization String?
+  jobTitle     String?
+  demoRole     String?           @unique
+  createdAt    DateTime          @default(now())
+  activity     PlatformActivity?
+  supportCases SupportCase[]
+  context      UserContext?
+}
+
+model PlatformActivity {
+  id                  String    @id @default(cuid())
+  userId              String    @unique
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accountCreatedAt    DateTime
+  sdk                 String    @default("node")
+  sdkVersion          String?
+  dailyRequests       Int
+  historicalErrorRate Float
+  currentErrorRate    Float
+  apiKeyConfigured    Boolean   @default(true)
+  features            Json      @default("[]")
+  lastConfigChangeAt  DateTime?
+  totalRequestsEver   Int?
+}
+
+model SupportCase {
   id        String   @id @default(cuid())
-  email     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  message   String
+  status    String   @default("open")
   createdAt DateTime @default(now())
+}
+
+model UserContext {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  context   Json
+  updatedAt DateTime @updatedAt
 }

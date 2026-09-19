@@ -4,6 +4,9 @@ import express from "express";
 import { prisma } from "./lib/prisma.js";
 
 import { jevRouter } from "./routes/jev.js";
+import { usersRouter } from "./routes/users.js";
+import { supportRouter } from "./routes/support.js";
+import { agentRouter } from "./routes/agent.js";
 
 dotenv.config();
 
@@ -14,6 +17,9 @@ app.use(cors({ origin: "http://localhost:5173" }));
 app.use(express.json());
 
 app.use("/api", jevRouter);
+app.use("/api", usersRouter);
+app.use("/api", supportRouter);
+app.use("/api", agentRouter);
 
 app.get("/api/health", async (_req, res) => {
   try {

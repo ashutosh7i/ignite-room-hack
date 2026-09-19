@@ -39,6 +39,10 @@ Structured state stays structured end-to-end—we do not embed platform JSON int
 
 ## Architecture
 
+![EnSight — a living context layer above fragmented platform data](./image.png)
+
+*Raw sources → Postgres + Prisma → Context Engine (Facts · Judgment · Language) → living `user_context` → applications.*
+
 ```text
 CSV + simulated activity  →  PostgreSQL (users, activity, tickets)
                                       ↓
@@ -149,6 +153,7 @@ Golden fixtures are seeded as `demoRole` **A** (onboarding) and **B** (productio
 ```text
 ignite-room-hack/
 ├── deck.pdf                 # Final presentation
+├── image.png                # Architecture diagram (README)
 ├── docker-compose.yml
 ├── Dataset for PS-3 (...).csv
 ├── backend/

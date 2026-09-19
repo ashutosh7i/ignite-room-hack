@@ -3,6 +3,8 @@ import dotenv from "dotenv";
 import express from "express";
 import { prisma } from "./lib/prisma.js";
 
+import { jevRouter } from "./routes/jev.js";
+
 dotenv.config();
 
 const app = express();
@@ -10,6 +12,8 @@ const port = Number(process.env.PORT) || 3001;
 
 app.use(cors({ origin: "http://localhost:5173" }));
 app.use(express.json());
+
+app.use("/api", jevRouter);
 
 app.get("/api/health", async (_req, res) => {
   try {

@@ -7,13 +7,67 @@ import { findSimilarUsers } from "../context/similarUsers.js";
 const CHAT_MODEL = () =>
   process.env.CHAT_MODEL ?? "google/gemini-2.0-flash-001";
 
-export async function handleAgentQuery(message: string): Promise<{
+export async function handleAgentQuery(
+  message: string,
+  userId?: string,
+): Promise<{
   answer: string;
   sources: string[];
   structured?: unknown;
 }> {
   const trimmed = message.trim();
   const lower = trimmed.toLowerCase();
+
+  if (userId) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { context: true },
+    });
+    if (!user) {
+      return { answer: "User not found.", sources: ["users"] };
+    }
+
+    const ctx = user.context?.context as UserContextDocument | undefined;
+    if (!ctx) {
+      return {
+        answer: `${user.firstName} ${user.lastName} has no context yet. Use Refresh context first.`,
+        sources: ["users"],
+      };
+    }
+
+    if (lower.includes("similar") || lower.includes("same behaviour")) {
+      const similar = await findSimilarUsers(userId, 6);
+      return {
+        answer:
+          similar.length > 0
+            ? `${similar.length} users with similar context. Top: ${similar[0].firstName} ${similar[0].lastName} (${(similar[0].similarity * 100).toFixed(0)}%).`
+            : "No similar contexts found yet.",
+        sources: ["user_context", "similarity"],
+        structured: similar,
+      };
+    }
+
+    if (lower.includes("escalat")) {
+      const p = ctx.support.escalationProbability;
+      return {
+        answer:
+          p !== null
+            ? `Escalation probability is ${(p * 100).toFixed(0)}%. ${ctx.support.recommendedAction}`
+            : ctx.support.recommendedAction,
+        sources: ["user_context", "jev"],
+        structured: ctx.support,
+      };
+    }
+
+    if (lower.includes("in our database") || /^is\s+/i.test(trimmed)) {
+      return {
+        answer: `Yes — ${user.firstName} ${user.lastName} is in the database${user.organization ? ` (${user.organization})` : ""}.`,
+        sources: ["users"],
+      };
+    }
+
+    return summarizeWithLlm(trimmed, ctx, user.firstName, user.lastName);
+  }
 
   const nameMatch = trimmed.match(
     /(?:is|about|know about|find)\s+([a-z][a-z\s'-]{1,40}?)(?:\s+in|\?|$|\.)/i,

@@ -4,13 +4,16 @@ import { handleAgentQuery } from "../services/agent/queryAgent.js";
 export const agentRouter = Router();
 
 agentRouter.post("/agent/query", async (req, res) => {
-  const { message } = req.body as { message?: string };
+  const { message, userId } = req.body as {
+    message?: string;
+    userId?: string;
+  };
   if (!message?.trim()) {
     return res.status(400).json({ error: "missing_message" });
   }
 
   try {
-    const result = await handleAgentQuery(message);
+    const result = await handleAgentQuery(message, userId);
     res.json(result);
   } catch (err) {
     console.error(err);

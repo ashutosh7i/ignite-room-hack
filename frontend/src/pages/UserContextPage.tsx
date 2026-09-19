@@ -30,6 +30,9 @@ export function UserContextPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [agentAnswer, setAgentAnswer] = useState<string | null>(null);
+  const [customQuestion, setCustomQuestion] = useState("");
+  const [agentLoading, setAgentLoading] = useState(false);
+  const [agentError, setAgentError] = useState<string | null>(null);
   const [similar, setSimilar] = useState<
     Array<{ firstName: string; lastName: string; similarity: number; summary: string }>
   >([]);
@@ -51,6 +54,19 @@ export function UserContextPage() {
   }, [id]);
 
   if (!id) return null;
+
+  const askAgent = (question: string) => {
+    const q = question.trim();
+    if (!q) return;
+    setAgentLoading(true);
+    setAgentError(null);
+    agentQuery(q, id)
+      .then((r) => setAgentAnswer(r.answer))
+      .catch((e) =>
+        setAgentError(e instanceof Error ? e.message : "Agent request failed"),
+      )
+      .finally(() => setAgentLoading(false));
+  };
 
   return (
     <div className="space-y-6">
@@ -141,32 +157,62 @@ export function UserContextPage() {
             </p>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() =>
-                agentQuery(
-                  `What do we know about ${context.identity.firstName}?`,
-                ).then((r) => setAgentAnswer(r.answer))
-              }
-            >
-              Ask agent
-            </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() =>
-                fetchSimilar(id).then((r) => setSimilar(r.similar ?? []))
-              }
-            >
-              Find similar contexts
-            </Button>
+          <div className="space-y-3 rounded-lg border p-4">
+            <h2 className="font-medium">Ask EnSight</h2>
+            <p className="text-muted-foreground text-xs">
+              Questions use this user&apos;s stored context (facts + Jev judgments).
+            </p>
+            <textarea
+              className="border-input bg-background min-h-[88px] w-full rounded-lg border px-3 py-2 text-sm"
+              placeholder="e.g. Why is their API failing? Should we escalate? What is their integration maturity?"
+              value={customQuestion}
+              onChange={(e) => setCustomQuestion(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  askAgent(customQuestion);
+                }
+              }}
+            />
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                disabled={agentLoading || !customQuestion.trim()}
+                onClick={() => askAgent(customQuestion)}
+              >
+                {agentLoading ? "Thinking…" : "Ask"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={agentLoading}
+                onClick={() =>
+                  askAgent(
+                    `What do we know about ${context.identity.firstName}?`,
+                  )
+                }
+              >
+                Summarize user
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() =>
+                  fetchSimilar(id).then((r) => setSimilar(r.similar ?? []))
+                }
+              >
+                Find similar contexts
+              </Button>
+            </div>
+            {agentError && (
+              <p className="text-destructive text-sm">{agentError}</p>
+            )}
+            {agentAnswer && (
+              <div className="bg-muted rounded-md border p-3 text-sm whitespace-pre-wrap">
+                {agentAnswer}
+              </div>
+            )}
           </div>
-
-          {agentAnswer && (
-            <div className="bg-muted rounded-lg border p-4 text-sm">{agentAnswer}</div>
-          )}
 
           {similar.length > 0 && (
             <ul className="divide-y rounded-lg border text-sm">

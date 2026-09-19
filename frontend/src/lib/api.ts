@@ -87,11 +87,11 @@ export async function fetchSupportAnalyze() {
   return res.json();
 }
 
-export async function agentQuery(message: string) {
+export async function agentQuery(message: string, userId?: string) {
   const res = await fetch("/api/agent/query", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message }),
+    body: JSON.stringify({ message, userId }),
   });
   if (!res.ok) throw new Error("Agent failed");
   return res.json() as Promise<{ answer: string; sources: string[] }>;
